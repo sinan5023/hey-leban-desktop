@@ -1,7 +1,7 @@
 // src/preload/index.js
 // Runs in the renderer context with access to ipcRenderer.
-// 
-// This script does two critical things:
+//
+// This script does two things:
 //
 //  1. MOCKS window.rnBridge  — The web app calls window.rnBridge.send(msg)
 //     exactly like it would call the React Native WebView bridge.
@@ -45,7 +45,7 @@ ipcRenderer.on('rnbridge:response', (_event, response) => {
   window.dispatchEvent(rnMessageEvent);
 });
 
-// ── 3. Expose electronAPI for printer settings UI ────────────────────────────
+// ── 3. Expose electronAPI for printer settings UI ─────────────────────────────
 //
 // This allows any settings page/component to access printer controls
 // without going through the rnBridge channel.
@@ -62,6 +62,9 @@ contextBridge.exposeInMainWorld('electronAPI', {
 
   /** Platform info */
   platform: process.platform,
+
+  /** Quit the app */
+  quitApp: () => ipcRenderer.invoke('app:quit'),
 });
 
 console.log('[PRELOAD] Hey Leban desktop bridge loaded. window.rnBridge is ready.');

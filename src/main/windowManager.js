@@ -1,48 +1,41 @@
-// src/main/windowManager.js — BrowserWindow setup with Kiosk Mode
+// src/main/windowManager.js — BrowserWindow setup
+// Uses native OS fullscreen with frame:true so that:
+//   • On Windows: hovering at the top reveals the native title bar + controls
+//   • On macOS:   moving to the top reveals the traffic-light buttons
+// No custom titlebar injection required.
 
 const { BrowserWindow, app, globalShortcut, Menu, shell } = require('electron');
 const path = require('path');
 
 const POS_URL = 'https://hey-leban-frontend.vercel.app/';
 
-// ── Kiosk mode flag ───────────────────────────────────────────────────────────
-// Set to false to allow normal windowed mode (useful during development)
+// ── Dev flag ──────────────────────────────────────────────────────────────────
 const IS_DEV = process.argv.includes('--dev');
-const KIOSK_MODE = !IS_DEV;
 
-/**
- * Creates and returns the main BrowserWindow in kiosk mode.
- * Kiosk mode:
- *   - Fullscreen, no titlebar or frame
- *   - All exit shortcuts (Cmd+Q, Cmd+W, Alt+F4, F11) are blocked
- *   - Right-click context menu is disabled
- *   - Window cannot be closed, minimized, or resized
- *   - App menu is completely removed
- *   - Auto-reloads on renderer crash
- */
 function createMainWindow(store) {
-  // ── Remove the native app menu entirely ────────────────────────────────
   Menu.setApplicationMenu(null);
 
   const win = new BrowserWindow({
-    // ── Kiosk / fullscreen settings ──
-    fullscreen: KIOSK_MODE,
-    kiosk: KIOSK_MODE,           // true kiosk: blocks macOS Mission Control
-    frame: false,                // no titlebar
-    alwaysOnTop: KIOSK_MODE,
-    closable: !KIOSK_MODE,       // prevent accidental close in kiosk
-    minimizable: !KIOSK_MODE,
-    maximizable: false,
-    resizable: !KIOSK_MODE,
-    movable: !KIOSK_MODE,
+    // ── Native frame: gives us real OS close/minimise/maximise buttons ──
+    frame: true,
+    autoHideMenuBar: true,   // hide the menu bar (File/Edit/…) but keep frame
 
-    // ── Window identity ──
+    // ── Fullscreen (the OS reveals the native title bar on hover) ──────
+    fullscreen: !IS_DEV,
+    // On Windows, fullscreen + frame = native immersive fullscreen where
+    // moving to the top edge shows the title bar with native controls.
+
+    // ── No lockdown — window is freely closable / minimisable ──────────
+    closable: true,
+    minimizable: true,
+    maximizable: true,
+    resizable: true,
+
     title: 'Hey Leban POS',
     icon: path.join(__dirname, '../../assets/icon.png'),
-    backgroundColor: '#0f0f0f',  // dark bg while page loads (no white flash)
+    backgroundColor: '#0f0f0f',
     show: false,
 
-    // ── Dev mode fallback size ──
     width: 1280,
     height: 800,
     minWidth: 1024,
@@ -54,76 +47,57 @@ function createMainWindow(store) {
       nodeIntegration: false,
       sandbox: false,
       webSecurity: true,
-      // Disable default context menu in kiosk
       spellcheck: false,
     },
   });
 
-  // ── Load the POS web app ────────────────────────────────────────────────
   win.loadURL(POS_URL);
 
-  // ── Show window only when content is ready (no white flash) ────────────
   win.once('ready-to-show', () => {
     win.show();
     if (IS_DEV) {
+      // In dev: start maximised so it resembles production without going fullscreen
+      win.maximize();
       win.webContents.openDevTools({ mode: 'detach' });
     }
   });
 
-  // ── Block all system exit shortcuts in kiosk mode ───────────────────────
-  if (KIOSK_MODE) {
-    _registerKioskShortcuts(win);
+  // Block devtools shortcuts in production
+  if (!IS_DEV) {
+    _registerProductionShortcuts();
   }
 
-  // ── Disable right-click context menu ───────────────────────────────────
-  win.webContents.on('context-menu', (e) => {
-    e.preventDefault();
-  });
+  // Disable right-click context menu
+  win.webContents.on('context-menu', (e) => e.preventDefault());
 
-  // ── Prevent window close in kiosk (Cmd+Q still quits — blocked below) ──
-  win.on('close', (e) => {
-    if (KIOSK_MODE) {
-      e.preventDefault(); // ignore OS-level close
-    }
-  });
-
-  // ── Auto-reload if the renderer process crashes ─────────────────────────
+  // Auto-reload on renderer crash
   win.webContents.on('render-process-gone', (_event, details) => {
-    console.error('[KIOSK] Renderer crashed:', details.reason, '— reloading...');
-    setTimeout(() => {
-      if (!win.isDestroyed()) {
-        win.loadURL(POS_URL);
-      }
-    }, 1500);
+    console.error('[POS] Renderer crashed:', details.reason, '— reloading...');
+    setTimeout(() => { if (!win.isDestroyed()) win.loadURL(POS_URL); }, 1500);
   });
 
-  // ── Auto-reload if page fails to load (network blip, etc.) ────────────
+  // Auto-reload on network failure
   win.webContents.on('did-fail-load', (_event, errorCode, errorDescription) => {
-    if (errorCode === -3) return; // -3 = user-aborted, ignore
-    console.warn(`[KIOSK] Page load failed (${errorCode}: ${errorDescription}) — retrying in 5s`);
-    setTimeout(() => {
-      if (!win.isDestroyed()) {
-        win.loadURL(POS_URL);
-      }
-    }, 5000);
+    if (errorCode === -3) return;
+    console.warn(`[POS] Load failed (${errorCode}: ${errorDescription}) — retrying in 5s`);
+    setTimeout(() => { if (!win.isDestroyed()) win.loadURL(POS_URL); }, 5000);
   });
 
-  // ── Security: keep new windows inside the app ───────────────────────────
+  // Keep new-window navigations in-app
   win.webContents.setWindowOpenHandler(({ url }) => {
     shell.openExternal(url);
     return { action: 'deny' };
   });
 
-  // ── Persist dev window bounds across sessions ───────────────────────────
+  // Persist dev window bounds
   if (IS_DEV) {
     const { width = 1280, height = 800, x, y } = store.get('windowBounds', {});
     win.setBounds({ width, height, x: x || 0, y: y || 0 });
-
-    function saveBounds() {
+    const saveBounds = () => {
       if (!win.isMaximized() && !win.isMinimized()) {
         store.set('windowBounds', win.getBounds());
       }
-    }
+    };
     win.on('resize', saveBounds);
     win.on('move', saveBounds);
   }
@@ -131,43 +105,15 @@ function createMainWindow(store) {
   return win;
 }
 
-// ── Block keyboard shortcuts that could escape kiosk ─────────────────────────
-function _registerKioskShortcuts(win) {
+// ── Block only devtools/reload shortcuts — never block close/minimise ─────────
+function _registerProductionShortcuts() {
   app.on('browser-window-focus', () => {
-    // macOS
-    globalShortcut.register('Command+Q', () => {});         // quit
-    globalShortcut.register('Command+W', () => {});         // close tab
-    globalShortcut.register('Command+M', () => {});         // minimize
-    globalShortcut.register('Command+H', () => {});         // hide
-    globalShortcut.register('Command+Option+H', () => {});  // hide others
-    globalShortcut.register('Command+R', () => {});         // reload (allow ctrl below)
-    globalShortcut.register('Command+Shift+Q', () => {});   // logout
-    globalShortcut.register('Command+Control+F', () => {}); // enter fullscreen toggle
-
-    // Windows / Linux
-    globalShortcut.register('Alt+F4', () => {});            // close window
-    globalShortcut.register('Control+W', () => {});         // close tab
-    globalShortcut.register('Control+Q', () => {});         // quit
-    globalShortcut.register('Control+Alt+Delete', () => {}); // task manager
-
-    // DevTools — blocked in kiosk
     globalShortcut.register('F12', () => {});
-    globalShortcut.register('Command+Option+I', () => {});
     globalShortcut.register('Control+Shift+I', () => {});
-
-    // ── BUT allow a secret supervisor unlock combo: Ctrl+Shift+F10 ────────
-    // Hold this to exit kiosk (for IT/admin use only)
-    globalShortcut.register('Control+Shift+F10', () => {
-      console.log('[KIOSK] Supervisor override — exiting kiosk mode');
-      globalShortcut.unregisterAll();
-      win.setKiosk(false);
-      win.setFullScreen(false);
-      win.setAlwaysOnTop(false);
-      win.setClosable(true);
-      win.setMinimizable(true);
-      // Optionally open DevTools for debugging
-      win.webContents.openDevTools({ mode: 'detach' });
-    });
+    globalShortcut.register('Command+Option+I', () => {});
+    globalShortcut.register('Control+R', () => {});
+    globalShortcut.register('F5', () => {});
+    globalShortcut.register('Command+R', () => {});
   });
 
   app.on('browser-window-blur', () => {
@@ -175,4 +121,11 @@ function _registerKioskShortcuts(win) {
   });
 }
 
-module.exports = { createMainWindow };
+// ── Cleanly quit (called from IPC handler) ────────────────────────────────────
+function _quitApp(win) {
+  globalShortcut.unregisterAll();
+  win.setFullScreen(false);
+  app.quit();
+}
+
+module.exports = { createMainWindow, _quitApp };

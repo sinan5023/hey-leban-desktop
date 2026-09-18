@@ -4,6 +4,7 @@
 
 const { ipcMain, BrowserWindow } = require('electron');
 const { printBill, printKOT, printTest } = require('./printerService');
+const { _quitApp } = require('./windowManager');
 
 /**
  * IPC Channels:
@@ -91,6 +92,12 @@ function setupIpcHandlers(store) {
     store.set('printerConfig', config);
     console.log('[IPC] Printer config updated:', config);
     return { success: true };
+  });
+
+  // ── Quit app (renderer-triggered) ─────────────────────────────────────────
+  ipcMain.handle('app:quit', async (event) => {
+    const win = BrowserWindow.fromWebContents(event.sender);
+    if (win) _quitApp(win);
   });
 }
 
