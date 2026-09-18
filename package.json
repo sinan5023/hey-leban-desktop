@@ -1,0 +1,81 @@
+{
+  "name": "hey-leban-desktop",
+  "version": "1.0.0",
+  "description": "Hey Leban POS Desktop Bridge — Electron app that bridges the web POS to a USB thermal printer",
+  "main": "src/main/index.js",
+  "author": "Hey Leban",
+  "license": "MIT",
+  "scripts": {
+    "postinstall": "node scripts/processAssets.js",
+    "start": "electron .",
+    "dev": "electron . --dev",
+    "build:mac": "electron-builder --mac",
+    "build:win": "electron-builder --win",
+    "build:linux": "electron-builder --linux"
+  },
+  "dependencies": {
+    "electron-store": "^8.2.0",
+    "node-thermal-printer": "^4.3.4",
+    "sharp": "^0.33.4",
+    "usb": "^2.14.0"
+  },
+  "devDependencies": {
+    "electron": "^32.3.3",
+    "electron-builder": "^24.13.3"
+  },
+  "build": {
+    "appId": "com.heyleban.pos",
+    "productName": "Hey Leban POS",
+    "copyright": "Copyright © 2024 Hey Leban",
+    "icon": "assets/icon",
+    "asar": true,
+    "asarUnpack": [
+      "node_modules/sharp/**/*",
+      "node_modules/usb/**/*",
+      "node_modules/@serialport/**/*",
+      "assets/logo-print.jpg"
+    ],
+    "files": [
+      "src/**/*",
+      "assets/**/*",
+      "scripts/**/*",
+      "package.json",
+      "node_modules/**/*"
+    ],
+    "mac": {
+      "category": "public.app-category.business",
+      "target": [
+        { "target": "dmg", "arch": ["arm64", "x64"] }
+      ],
+      "entitlements": "build/entitlements.mac.plist",
+      "entitlementsInherit": "build/entitlements.mac.plist",
+      "hardenedRuntime": true,
+      "gatekeeperAssess": false
+    },
+    "dmg": {
+      "title": "Hey Leban POS Installer",
+      "contents": [
+        { "x": 130, "y": 220 },
+        { "x": 410, "y": 220, "type": "link", "path": "/Applications" }
+      ],
+      "window": { "width": 540, "height": 380 }
+    },
+    "win": {
+      "target": [
+        { "target": "nsis", "arch": ["x64"] }
+      ]
+    },
+    "nsis": {
+      "oneClick": false,
+      "allowToChangeInstallationDirectory": true,
+      "createDesktopShortcut": true,
+      "createStartMenuShortcut": true,
+      "shortcutName": "Hey Leban POS"
+    },
+    "linux": {
+      "target": ["AppImage", "deb"],
+      "category": "Office"
+    },
+    "publish": null
+  }
+}

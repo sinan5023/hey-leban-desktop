@@ -1,0 +1,59 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src https://fonts.gstatic.com;" />
+  <title>Hey Leban POS — Printer Settings</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="settings.css" />
+</head>
+<body>
+  <div class="container">
+    <header class="header">
+      <div class="logo-mark">HL</div>
+      <div>
+        <h1>Hey Leban POS</h1>
+        <p class="subtitle">Printer Settings & Status</p>
+      </div>
+    </header>
+
+    <section class="card">
+      <h2>Printer Status</h2>
+      <div class="status-row">
+        <span class="status-dot" id="status-dot"></span>
+        <span id="status-text">Checking...</span>
+      </div>
+      <button class="btn btn-secondary" id="btn-test">🖨️ Send Test Print</button>
+      <p class="hint" id="test-result"></p>
+    </section>
+
+    <section class="card">
+      <h2>Connection</h2>
+      <label for="printer-interface">Printer Interface</label>
+      <select id="printer-interface" class="select">
+        <option value="usb">USB (Auto-detect)</option>
+        <option value="tcp://192.168.1.100">Network — 192.168.1.100</option>
+      </select>
+      <button class="btn btn-primary" id="btn-save">Save Configuration</button>
+      <p class="hint" id="save-result"></p>
+    </section>
+
+    <section class="card info-card">
+      <h2>Bridge Status</h2>
+      <p>The web app communicates with the printer through <code>window.rnBridge</code>.</p>
+      <div class="info-row">
+        <span>Bridge Injected</span>
+        <span class="badge badge-ok" id="bridge-status">Checking...</span>
+      </div>
+      <div class="info-row">
+        <span>Platform</span>
+        <span id="platform-info">—</span>
+      </div>
+    </section>
+  </div>
+
+  <script src="settings.js"></script>
+</body>
+</html>
