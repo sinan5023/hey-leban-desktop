@@ -62,10 +62,8 @@ function createMainWindow(store) {
     }
   });
 
-  // Block devtools shortcuts in production
-  if (!IS_DEV) {
-    _registerProductionShortcuts();
-  }
+  // Register diagnostic shortcuts (F12, Ctrl+Shift+I, Ctrl+L, F5)
+  _registerShortcuts(win);
 
   // Disable right-click context menu
   win.webContents.on('context-menu', (e) => e.preventDefault());
@@ -105,20 +103,47 @@ function createMainWindow(store) {
   return win;
 }
 
-// ── Block only devtools/reload shortcuts — never block close/minimise ─────────
-function _registerProductionShortcuts() {
-  app.on('browser-window-focus', () => {
-    globalShortcut.register('F12', () => {});
-    globalShortcut.register('Control+Shift+I', () => {});
-    globalShortcut.register('Command+Option+I', () => {});
-    globalShortcut.register('Control+R', () => {});
-    globalShortcut.register('F5', () => {});
-    globalShortcut.register('Command+R', () => {});
-  });
+// ── Shortcuts: DevTools, Logs, Reload ─────────────────────────────────────────
+function _registerShortcuts(win) {
+  const { openLogFile } = require('./logger');
 
+  const register = () => {
+    // F12 or Ctrl+Shift+I toggles DevTools anytime
+    globalShortcut.register('F12', () => {
+      if (win && !win.isDestroyed()) {
+        win.webContents.toggleDevTools();
+      }
+    });
+    globalShortcut.register('Control+Shift+I', () => {
+      if (win && !win.isDestroyed()) {
+        win.webContents.toggleDevTools();
+      }
+    });
+    globalShortcut.register('Command+Option+I', () => {
+      if (win && !win.isDestroyed()) {
+        win.webContents.toggleDevTools();
+      }
+    });
+
+    // Ctrl+L opens the persistent app.log file in Notepad/TextEdit
+    globalShortcut.register('Control+L', () => openLogFile());
+    globalShortcut.register('Command+L', () => openLogFile());
+
+    // F5 or Ctrl+R reloads the POS web page
+    globalShortcut.register('F5', () => {
+      if (win && !win.isDestroyed()) win.webContents.reload();
+    });
+    globalShortcut.register('Control+R', () => {
+      if (win && !win.isDestroyed()) win.webContents.reload();
+    });
+  };
+
+  app.on('browser-window-focus', register);
   app.on('browser-window-blur', () => {
     globalShortcut.unregisterAll();
   });
+
+  register();
 }
 
 // ── Cleanly quit (called from IPC handler) ────────────────────────────────────

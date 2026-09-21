@@ -29,15 +29,16 @@ async function run() {
     console.warn('[assets] ⚠️  No icon.jpg or icon.png found in assets/ — app icon will be missing.');
   }
 
-  // ── logo.jpg → logo-print.jpg ────────────────────────────────────────────
+  // ── logo.jpg → logo-print.png ────────────────────────────────────────────
+  // node-thermal-printer strictly requires PNG for printImage()
   const logoSrc = path.join(assetsDir, 'logo.jpg');
-  const logoDst = path.join(assetsDir, 'logo-print.jpg');
+  const logoDst = path.join(assetsDir, 'logo-print.png');
   if (fs.existsSync(logoSrc)) {
     await sharp(logoSrc)
       .resize(384, null, { fit: 'inside', withoutEnlargement: true })
-      .jpeg({ quality: 90 })
+      .png()
       .toFile(logoDst);
-    console.log('[assets] ✅ logo-print.jpg generated (384px wide for 80mm thermal printer)');
+    console.log('[assets] ✅ logo-print.png generated (384px wide PNG for 80mm thermal printer)');
   } else {
     console.warn('[assets] ⚠️  No logo.jpg found in assets/ — receipt will print without logo.');
   }

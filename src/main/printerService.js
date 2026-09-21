@@ -5,15 +5,15 @@
 const { ThermalPrinter, PrinterTypes, CharacterSet } = require('node-thermal-printer');
 const path = require('path');
 const fs = require('fs');
+const { printBuffer } = require('./windowsPrinter');
 
 // ── Printer config (mirrors constants/index.ts) ───────────────────────────────
 const PRINTER_CHAR_WIDTH = 48;
 const W = PRINTER_CHAR_WIDTH;
 const MARGIN = '  '; // 2-space left margin
 
-// Path to the logo image — pre-scaled to 384px wide for 80mm / 203dpi thermal printer
-// (logo-print.jpg is auto-generated from logo.jpg by the setup step)
-const LOGO_PATH = path.join(__dirname, '../../assets/logo-print.jpg');
+// Path to the logo image — pre-scaled to 384px wide PNG for 80mm thermal printer
+const LOGO_PATH = path.join(__dirname, '../../assets/logo-print.png');
 
 // ── String helpers (mirrors printFormatter.ts) ────────────────────────────────
 function padEnd(str, len) {
@@ -56,23 +56,16 @@ function safeMoney(val) {
 // ── Low-level printer builder ─────────────────────────────────────────────────
 
 /**
- * Creates a node-thermal-printer instance using the first available USB device.
- * We use the `usb` interface type which auto-discovers connected USB printers.
+ * Creates an in-memory node-thermal-printer instance to generate ESC/POS byte commands.
  */
-function createPrinter(printerConfig = {}) {
-  // printerConfig can override interface if a specific VID:PID is stored
-  const iface = printerConfig.interface || 'usb';
-  const printer = new ThermalPrinter({
+function createPrinter() {
+  return new ThermalPrinter({
     type: PrinterTypes.EPSON, // standard ESC/POS compatible
-    interface: iface,
     characterSet: CharacterSet.PC437_USA,
     removeSpecialCharacters: false,
     lineCharacter: '-',
-    options: {
-      timeout: 8000,
-    },
+    width: PRINTER_CHAR_WIDTH,
   });
-  return printer;
 }
 
 // ── Receipt formatters ────────────────────────────────────────────────────────
@@ -81,16 +74,18 @@ function createPrinter(printerConfig = {}) {
  * Prints a BILL receipt.
  * Mirrors formatBill() from printFormatter.ts.
  */
-async function printBill(payload, printerConfig) {
-  const printer = createPrinter(printerConfig);
-  const isConnected = await printer.isPrinterConnected();
-  if (!isConnected) throw new Error('USB printer not found or not connected.');
+async function printBill(payload, printerConfig = {}) {
+  const printer = createPrinter();
 
   const { shop, order, summary, payment, items, notes, footerMessage, cashierName } = payload;
 
   // ── Logo ──
   if (fs.existsSync(LOGO_PATH)) {
-    await printer.printImage(LOGO_PATH);
+    try {
+      await printer.printImage(LOGO_PATH);
+    } catch (err) {
+      console.warn('[PRINTER] Failed to add logo to receipt (non-fatal):', err.message);
+    }
   }
   printer.newLine();
 
@@ -228,7 +223,9 @@ async function printBill(payload, printerConfig) {
   printer.newLine();
   printer.cut();
 
-  await printer.execute();
+  const buffer = printer.getBuffer();
+  const target = printerConfig.printerName || printerConfig.interface || 'Essae PR -55';
+  await printBuffer(target, buffer);
   console.log('[PRINTER] Bill printed successfully.');
 }
 
@@ -236,10 +233,8 @@ async function printBill(payload, printerConfig) {
  * Prints a KOT ticket.
  * Mirrors formatKOT() from printFormatter.ts.
  */
-async function printKOT(payload, printerConfig) {
-  const printer = createPrinter(printerConfig);
-  const isConnected = await printer.isPrinterConnected();
-  if (!isConnected) throw new Error('USB printer not found or not connected.');
+async function printKOT(payload, printerConfig = {}) {
+  const printer = createPrinter();
 
   const { shop, order, items, notes } = payload;
   const kotInfo = payload.kot;
@@ -339,17 +334,17 @@ async function printKOT(payload, printerConfig) {
   printer.newLine();
   printer.cut();
 
-  await printer.execute();
+  const buffer = printer.getBuffer();
+  const target = printerConfig.printerName || printerConfig.interface || 'Essae PR -55';
+  await printBuffer(target, buffer);
   console.log('[PRINTER] KOT printed successfully.');
 }
 
 /**
  * Prints a test page to verify the printer is working.
  */
-async function printTest(printerConfig) {
-  const printer = createPrinter(printerConfig);
-  const isConnected = await printer.isPrinterConnected();
-  if (!isConnected) throw new Error('USB printer not found or not connected.');
+async function printTest(printerConfig = {}) {
+  const printer = createPrinter();
 
   const now = new Date().toLocaleString();
 
@@ -365,7 +360,7 @@ async function printTest(printerConfig) {
 
   printer.alignLeft();
   printer.println(`${MARGIN}Printer:  OK`);
-  printer.println(`${MARGIN}USB OTG:  OK`);
+  printer.println(`${MARGIN}Model:    Essae PR-55`);
   printer.println(`${MARGIN}ESC/POS:  OK`);
   printer.drawLine();
   printer.newLine();
@@ -378,7 +373,9 @@ async function printTest(printerConfig) {
   printer.newLine();
   printer.cut();
 
-  await printer.execute();
+  const buffer = printer.getBuffer();
+  const target = printerConfig.printerName || printerConfig.interface || 'Essae PR -55';
+  await printBuffer(target, buffer);
   console.log('[PRINTER] Test print sent successfully.');
 }
 

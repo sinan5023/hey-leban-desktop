@@ -8,8 +8,7 @@ const testResult = document.getElementById('test-result');
 const select     = document.getElementById('printer-interface');
 const btnSave    = document.getElementById('btn-save');
 const saveResult = document.getElementById('save-result');
-const bridgeStatus = document.getElementById('bridge-status');
-const platformInfo = document.getElementById('platform-info');
+const btnLogs    = document.getElementById('btn-logs');
 
 // ── Bridge / platform info ────────────────────────────────────────────────────
 if (window.electronAPI) {
@@ -21,11 +20,63 @@ if (window.electronAPI) {
   bridgeStatus.className = 'badge badge-err';
 }
 
-// ── Load saved config ─────────────────────────────────────────────────────────
+// ── Open logs ────────────────────────────────────────────────────────────────
+if (btnLogs && window.electronAPI?.openLogs) {
+  btnLogs.addEventListener('click', () => {
+    window.electronAPI.openLogs();
+  });
+}
+
+// ── Load saved config & detect system printers ───────────────────────────────
 async function loadConfig() {
   if (!window.electronAPI) return;
-  const config = await window.electronAPI.getPrinterConfig();
-  if (config?.interface) select.value = config.interface;
+
+  try {
+    const config = await window.electronAPI.getPrinterConfig();
+    const savedPrinter = config?.printerName || config?.interface || 'Essae PR -55';
+
+    // Query system printers
+    const printers = await window.electronAPI.getSystemPrinters();
+    select.innerHTML = '';
+
+    // Auto-detect option
+    const autoOpt = document.createElement('option');
+    autoOpt.value = 'auto';
+    autoOpt.textContent = '⚡ Auto-Detect (Essae PR-55 / Default)';
+    select.appendChild(autoOpt);
+
+    // List detected system printers
+    if (printers && printers.length > 0) {
+      printers.forEach((p) => {
+        const opt = document.createElement('option');
+        opt.value = p.name;
+        opt.textContent = `${p.name}${p.isDefault ? ' (Default)' : ''}`;
+        select.appendChild(opt);
+      });
+    }
+
+    // Network manual option
+    const netOpt = document.createElement('option');
+    netOpt.value = 'tcp://192.168.1.100:9100';
+    netOpt.textContent = '🌐 Network — 192.168.1.100:9100';
+    select.appendChild(netOpt);
+
+    // Select the saved option
+    if (savedPrinter) {
+      let match = Array.from(select.options).find(o => o.value === savedPrinter);
+      if (match) {
+        select.value = savedPrinter;
+      } else {
+        const customOpt = document.createElement('option');
+        customOpt.value = savedPrinter;
+        customOpt.textContent = `🖨️ ${savedPrinter}`;
+        select.appendChild(customOpt);
+        select.value = savedPrinter;
+      }
+    }
+  } catch (err) {
+    console.error('Error loading printer config:', err);
+  }
 }
 loadConfig();
 
@@ -64,7 +115,11 @@ btnSave.addEventListener('click', async () => {
   saveResult.className = 'hint';
 
   try {
-    await window.electronAPI.setPrinterConfig({ interface: select.value });
+    const val = select.value;
+    await window.electronAPI.setPrinterConfig({
+      printerName: val === 'auto' ? '' : val,
+      interface: val,
+    });
     saveResult.textContent = '✓ Configuration saved.';
     saveResult.className = 'hint success';
   } catch (err) {

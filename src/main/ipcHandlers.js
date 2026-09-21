@@ -84,13 +84,27 @@ function setupIpcHandlers(store) {
 
   // ── Get printer config ─────────────────────────────────────────────────────
   ipcMain.handle('printer:get-config', () => {
-    return store.get('printerConfig', { interface: 'usb' });
+    return store.get('printerConfig', { printerName: 'Essae PR -55' });
   });
 
   // ── Set printer config ─────────────────────────────────────────────────────
   ipcMain.handle('printer:set-config', (_, config) => {
     store.set('printerConfig', config);
     console.log('[IPC] Printer config updated:', config);
+    return { success: true };
+  });
+
+  // ── Get installed system printers ─────────────────────────────────────────
+  ipcMain.handle('printer:get-printers', async (event) => {
+    const win = BrowserWindow.fromWebContents(event.sender);
+    const { listSystemPrinters } = require('./windowsPrinter');
+    return await listSystemPrinters(win);
+  });
+
+  // ── Open log file in default viewer (Notepad / TextEdit) ───────────────────
+  ipcMain.handle('app:open-logs', () => {
+    const { openLogFile } = require('./logger');
+    openLogFile();
     return { success: true };
   });
 

@@ -2,6 +2,11 @@
 
 const { app, BrowserWindow, ipcMain, shell } = require('electron');
 const path = require('path');
+const { initLogger } = require('./logger');
+
+// ── Init persistent logger first ─────────────────────────────────────────────
+initLogger();
+
 const { setupIpcHandlers } = require('./ipcHandlers');
 const { createMainWindow } = require('./windowManager');
 const Store = require('electron-store');

@@ -41,10 +41,11 @@
     </section>
 
     <section class="card info-card">
-      <h2>Bridge Status</h2>
-      <p>The web app communicates with the printer through <code>window.rnBridge</code>.</p>
-      <div class="info-row">
-        <span>Bridge Injected</span>
+      <h2>Diagnostics & Logs</h2>
+      <p>Shortcut: Press <code>Ctrl + L</code> to view logs, or <code>F12</code> to open DevTools.</p>
+      <button class="btn btn-secondary" id="btn-logs">📄 Open Log File</button>
+      <div class="info-row" style="margin-top: 12px;">
+        <span>Bridge Status</span>
         <span class="badge badge-ok" id="bridge-status">Checking...</span>
       </div>
       <div class="info-row">

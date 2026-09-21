@@ -60,6 +60,12 @@ contextBridge.exposeInMainWorld('electronAPI', {
   /** Saves a new printer config */
   setPrinterConfig: (config) => ipcRenderer.invoke('printer:set-config', config),
 
+  /** Gets list of installed system printers */
+  getSystemPrinters: () => ipcRenderer.invoke('printer:get-printers'),
+
+  /** Opens the application log file on disk */
+  openLogs: () => ipcRenderer.invoke('app:open-logs'),
+
   /** Platform info */
   platform: process.platform,
 
