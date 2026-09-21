@@ -79,7 +79,8 @@ async function printBill(payload, printerConfig = {}) {
 
   const { shop, order, summary, payment, items, notes, footerMessage, cashierName } = payload;
 
-  // ── Logo ──
+  // ── Logo (Centered) ──
+  printer.alignCenter();
   if (fs.existsSync(LOGO_PATH)) {
     try {
       await printer.printImage(LOGO_PATH);

@@ -1,6 +1,6 @@
 {
   "name": "hey-leban-desktop",
-  "version": "1.0.1",
+  "version": "1.0.2",
   "description": "Hey Leban POS Desktop Bridge — Electron app that bridges the web POS to a USB thermal printer",
   "main": "src/main/index.js",
   "author": "Hey Leban",

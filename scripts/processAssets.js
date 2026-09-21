@@ -30,15 +30,30 @@ async function run() {
   }
 
   // ── logo.jpg → logo-print.png ────────────────────────────────────────────
-  // node-thermal-printer strictly requires PNG for printImage()
+  // Standard 80mm thermal printer printable width is 576 dots (203 dpi).
+  // We resize the logo to max 384px and center it onto a 576px canvas so
+  // it is perfectly centered on all ESC/POS printers regardless of firmware.
   const logoSrc = path.join(assetsDir, 'logo.jpg');
   const logoDst = path.join(assetsDir, 'logo-print.png');
   if (fs.existsSync(logoSrc)) {
-    await sharp(logoSrc)
+    const resizedBuffer = await sharp(logoSrc)
       .resize(384, null, { fit: 'inside', withoutEnlargement: true })
+      .toBuffer();
+    const meta = await sharp(resizedBuffer).metadata();
+    const padLeft = Math.floor((576 - meta.width) / 2);
+    const padRight = 576 - meta.width - padLeft;
+
+    await sharp(resizedBuffer)
+      .extend({
+        top: 0,
+        bottom: 0,
+        left: padLeft,
+        right: padRight,
+        background: { r: 255, g: 255, b: 255, alpha: 0 }
+      })
       .png()
       .toFile(logoDst);
-    console.log('[assets] ✅ logo-print.png generated (384px wide PNG for 80mm thermal printer)');
+    console.log(`[assets] ✅ logo-print.png generated (centered on 576px canvas for 80mm thermal printer)`);
   } else {
     console.warn('[assets] ⚠️  No logo.jpg found in assets/ — receipt will print without logo.');
   }
